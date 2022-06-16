@@ -15,12 +15,10 @@ export default function Home() {
   const zero = BigNumber.from(0);
   const [walletConnected, setWalletConnected] = useState(false);
   const [tokenAmount, setTokenAmount] = useState(zero);
-  const [tokenMinted, setTokenMinted] = useState(zero);
-  const [totalTokenMinted, setTotalTokenMinted] = useState(zero);
+  const [tokensMinted, setTokensMinted] = useState(zero);
+  const [totalTokensMinted, setTotalTokensMinted] = useState(zero);
   const [loading, setLoading] = useState(false);
-
-  const [tokensToBeClaimed, setTokenToBeClaimed] = useState(zero);
-
+  const [tokensToBeClaimed, setTokensToBeClaimed] = useState(zero);
   const web3ModalRef = useRef();
 
   const getProviderOrSigner = async (needSigner = false) => {
@@ -47,49 +45,7 @@ export default function Home() {
     }
   };
 
-  const claimToken = async () => {
-    try {
-      const provider = await getProviderOrSigner(true);
-      const tokenContract = new Contract(
-        TOKEN_CONTRACT_ADDR,
-        TOKEN_CONTRACT_ABI,
-        provider
-      );
-      const tx = await tokenContract.claim();
-      setLoading(true);
-      await tx.wait();
-      setLoading(false);
-      await getTokenMinted();
-      await getTotalTokenMinted();
-      await getTokensToBeClaimed();
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const mintToken = async(amount)=>{
-    try {
-      const provider = await getProviderOrSigner(true);
-      const tokenContract = new Contract(
-        TOKEN_CONTRACT_ADDR,
-        TOKEN_CONTRACT_ABI,
-        provider
-      );
-      const value = amount*0.001;
-      const tx = await tokenContract.mint(amount, {
-        value: utils.parseEther(value.toString()),
-      });
-      setLoading(true);
-      await tx.wait();
-      setLoading(false);
-      await getTokenMinted();
-      await getTotalTokenMinted();
-      await getTokensToBeClaimed();
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
+  
   useEffect(() => {
     if (!walletConnected) {
       web3ModalRef.current = new Web3Modal({
@@ -98,12 +54,55 @@ export default function Home() {
         disableInjectedProvider: false,
       });
       connectWallet();
-      getTokenMinted();
-      getTotalTokenMinted();
+      getTokensMinted();
+      getTotalTokensMinted();
       getTokensToBeClaimed();
     }
   }, [walletConnected]);
+  
+  const claimToken = async () => {
+    try {
+      const signer = await getProviderOrSigner(true);
+      const tokenContract = new Contract(
+        TOKEN_CONTRACT_ADDR,
+        TOKEN_CONTRACT_ABI,
+        signer
+      );
+      const tx = await tokenContract.claim();
+      setLoading(true);
+      await tx.wait();
+      setLoading(false);
+      await getTokensMinted();
+      await getTotalTokensMinted();
+      await getTokensToBeClaimed();
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
+  const mintToken = async (amount) => {
+    try {
+      const provider = await getProviderOrSigner(true);
+      const tokenContract = new Contract(
+        TOKEN_CONTRACT_ADDR,
+        TOKEN_CONTRACT_ABI,
+        provider
+      );
+      const value = amount * 0.001;
+      const tx = await tokenContract.mint(amount, {
+        value: utils.parseEther(value.toString()),
+      });
+      setLoading(true);
+      await tx.wait();
+      setLoading(false);
+      await getTokensMinted();
+      await getTotalTokensMinted();
+      await getTokensToBeClaimed();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  
   const getTokensToBeClaimed = async () => {
     try {
       const provider = await getProviderOrSigner();
@@ -113,33 +112,35 @@ export default function Home() {
         provider
       );
       const tokenContract = new Contract(
-        TOKEN_CONTRACT_ABI,
         TOKEN_CONTRACT_ADDR,
+        TOKEN_CONTRACT_ABI,
         provider
       );
       const signer = await getProviderOrSigner(true);
       const address = await signer.getAddress();
-      const balanceOFNFT = await nftContract.balanceOf(address);
-      if (balanceOFNFT === 0) {
-        setTokenToBeClaimed(zero);
+      console.log(address);
+      const balance = await nftContract.balanceOf(address);
+      console.log(balance);
+
+      if (balance === zero) {
+        setTokensToBeClaimed(zero);
       } else {
         var amount = 0;
-        for (var i = 0; i < balanceOFNFT; i++) {
-          const tokenId = await tokenContract.tokenOfOwnerByIndex(address, i);
+        for (var i = 0; i < balance; i++) {
+          const tokenId = await nftContract.tokenOfOwnerByIndex(address, i);
           const tokenClaimed = await tokenContract.tokenIdsClaimed(tokenId);
           if (!tokenClaimed) {
-            amount += 1;
+            amount++;
           }
-          
         }
-        setTokenToBeClaimed(BigNumber.from(amount));
+        setTokensToBeClaimed(BigNumber.from(amount));
       }
     } catch (error) {
       console.log(error);
     }
   };
 
-  const getTotalTokenMinted = async () => {
+  const getTotalTokensMinted = async () => {
     try {
       const provider = await getProviderOrSigner();
       const tokenContract = new Contract(
@@ -147,24 +148,24 @@ export default function Home() {
         TOKEN_CONTRACT_ABI,
         provider
       );
-      const totalTokenMinted = await tokenContract.totalSupply();
-      setTotalTokenMinted(totalTokenMinted);
+      const totalTokensMinted = await tokenContract.totalSupply();
+      setTotalTokensMinted(totalTokensMinted);
     } catch (error) {
       console.log(error);
     }
   };
-  const getTokenMinted = async () => {
+
+  const getTokensMinted = async () => {
     try {
-      const provider = await getProviderOrSigner();
+      const signer = await getProviderOrSigner(true);
       const tokenContract = new Contract(
         TOKEN_CONTRACT_ADDR,
         TOKEN_CONTRACT_ABI,
-        provider
+        signer
       );
-      const signer = await getProviderOrSigner(true);
-      const address = await signer.getAddress();
-      const tokenMinted = await tokenContract.balanceOf(address);
-      setTokenMinted(tokenMinted);
+      const address = signer.getAddress();
+      const tokensMinted = await tokenContract.balanceOf(address);
+      setTokensMinted(tokensMinted);
     } catch (error) {
       console.log(error);
     }
@@ -180,11 +181,11 @@ export default function Home() {
       );
     }
 
-    if (tokensToBeClaimed > 0) {
+    if (tokensToBeClaimed > zero) {
       return (
         <div>
           <div className={styles.description}>
-            {tokensToBeClaimed * 10} Tokens can be claimed!
+            {tokensToBeClaimed*10} Tokens can be claimed!
           </div>
           <button className={styles.button} onClick={claimToken}>
             Claim Tokens
@@ -192,7 +193,7 @@ export default function Home() {
         </div>
       );
     }
-   
+
     return (
       <div style={{ display: "flex-col" }}>
         <div>
@@ -233,12 +234,13 @@ export default function Home() {
             <div>
               <div className={styles.description}>
                 {/* Format Ether helps us in converting a BigNumber to string */}
-                You have minted {utils.formatEther(tokenMinted)} Crypto
-                Dev Tokens
+                You have minted {utils.formatEther(tokensMinted)} Crypto Dev
+                Tokens
               </div>
               <div className={styles.description}>
                 {/* Format Ether helps us in converting a BigNumber to string */}
-                Overall {utils.formatEther(totalTokenMinted)}/10000 have been minted!!!
+                Overall {utils.formatEther(totalTokensMinted)}/10000 have been
+                minted!!!
               </div>
               {renderButton()}
             </div>
@@ -247,6 +249,9 @@ export default function Home() {
               Connect your wallet
             </button>
           )}
+        </div>
+        <div>
+          <img className={styles.Image} src="./0.svg" alt="Crypto Devs" />
         </div>
       </div>
 

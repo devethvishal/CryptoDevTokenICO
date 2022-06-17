@@ -13,6 +13,7 @@ import {
 
 export default function Home() {
   const zero = BigNumber.from(0);
+  const [owner, setOwner] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [tokenAmount, setTokenAmount] = useState(zero);
   const [tokensMinted, setTokensMinted] = useState(zero);
@@ -45,7 +46,6 @@ export default function Home() {
     }
   };
 
-  
   useEffect(() => {
     if (!walletConnected) {
       web3ModalRef.current = new Web3Modal({
@@ -54,12 +54,13 @@ export default function Home() {
         disableInjectedProvider: false,
       });
       connectWallet();
+      getOwner();
       getTokensMinted();
       getTotalTokensMinted();
       getTokensToBeClaimed();
     }
   }, [walletConnected]);
-  
+
   const claimToken = async () => {
     try {
       const signer = await getProviderOrSigner(true);
@@ -72,6 +73,7 @@ export default function Home() {
       setLoading(true);
       await tx.wait();
       setLoading(false);
+      await getOwner();
       await getTokensMinted();
       await getTotalTokensMinted();
       await getTokensToBeClaimed();
@@ -95,6 +97,7 @@ export default function Home() {
       setLoading(true);
       await tx.wait();
       setLoading(false);
+      await getOwner();
       await getTokensMinted();
       await getTotalTokensMinted();
       await getTokensToBeClaimed();
@@ -102,7 +105,7 @@ export default function Home() {
       console.log(error);
     }
   };
-  
+
   const getTokensToBeClaimed = async () => {
     try {
       const provider = await getProviderOrSigner();
@@ -171,6 +174,48 @@ export default function Home() {
     }
   };
 
+  const getOwner = async () => {
+    try {
+      const signer = await getProviderOrSigner(true);
+      const tokenContract = new Contract(
+        TOKEN_CONTRACT_ADDR,
+        TOKEN_CONTRACT_ABI,
+        signer
+      );
+      const address = await signer.getAddress();
+      console.log(address);
+      const _owner = await tokenContract.owner();
+      console.log("hellow");
+      if (address === _owner) {
+        setOwner(true);
+        console.log("User is Owner.");
+      } else {
+        setOwner(false);
+        console.log("User is not Owner.");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const withdrawEth = async () => {
+    try {
+      const signer = await getProviderOrSigner(true);
+      const tokenContract = new Contract(
+        TOKEN_CONTRACT_ADDR,
+        TOKEN_CONTRACT_ABI,
+        signer
+      );
+      const tx = await tokenContract.withdraw();
+      setLoading(true);
+      await tx.wait();
+      setLoading(false);
+      window.alert("Withdraw Successful!");
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   const renderButton = () => {
     // If we are currently waiting for something, return a loading button
     if (loading) {
@@ -185,7 +230,7 @@ export default function Home() {
       return (
         <div>
           <div className={styles.description}>
-            {tokensToBeClaimed*10} Tokens can be claimed!
+            {tokensToBeClaimed * 10} Tokens can be claimed!
           </div>
           <button className={styles.button} onClick={claimToken}>
             Claim Tokens
@@ -243,6 +288,11 @@ export default function Home() {
                 minted!!!
               </div>
               {renderButton()}
+              {owner && (
+                <button className={styles.button} onClick={withdrawEth}>
+                  Withdraw Balance
+                </button>
+              )}
             </div>
           ) : (
             <button onClick={connectWallet} className={styles.button}>
